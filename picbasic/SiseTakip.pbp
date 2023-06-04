@@ -1,0 +1,96 @@
+'****************************************************************
+'*  Name    : ÞÝÞE DOLUM TAKÝP SÝSTEMÝ                          *
+'*  Author  : BERK BAYRAKTARGÝL                                 *
+'*  Date    : 28.06.2021                                        *
+'*  Notes   : FÝNAL ÖDEVÝ                                       *
+'****************************************************************
+
+    
+DEFINE  LCD_DREG    PORTB                       ; lcd data pinleri port tanýmlamasý
+DEFINE  LCD_DBIT    4                           ; lcd data pinlerinin 4 tanesi kullanýlacak
+DEFINE  LCD_RSREG   PORTB                       ; lcd rs pini port tanýmlamasý
+DEFINE  LCD_RSBIT   0                           ; lcd rs pini pin out tanýmlamasý
+DEFINE  LCD_EREG    PORTB                       ; lcd e pini port tanýmlamasý
+DEFINE  LCD_EBIT    1                           ; lcd e pini pin out tanýmlamasý
+     
+ADCON1=7                                        ; analaog pinler devre dýþý býrakýldý
+    
+TRISA=0                                         ; porta çýkýþ olarak ayarlandý
+TRISB=0                                         ; portb çýkýþ olarak ayarlandý
+TRISC=1                                         ; portc giriþ olarak ayarlandý
+TRISD=0                                         ; portd çýkýþ olarak ayarlandý
+TRISE=0                                         ; porte çýkýþ olarak ayarlandý
+          
+dolum var byte                                  ; dolum adýnda register tanýmlandý
+        
+bant_motor VAR PORTD.7                          ; bant motoru çýkýþý portdnin 7. bitine atandý
+su_pompasi VAR PORTD.6                          ; su pompasý çýkýþý portdnin 6. bitine atandý
+adet_sayici VAR PORTD.4                         ; adet sayýcý çýkýþý portdnin 4. bitine atandý
+    
+sise_sens var PORTC.2                           ; þiþe sens inputu portcnin 2. bitine atandý
+dolum_sens var PORTC.1                          ; dolum sens inputu portcnin 1. bitine atandý
+depo_sens var PORTC.0                           ; depo sens inputu portcnin 0. bitine atandý
+    
+low bant_motor                                  ; bant motoru sýfýra çekildi (kapatýldý)
+low su_pompasi                                  ; su pompasý sýfýra çekildi (kapatýldý)
+low adet_sayici                                 ; adet sayýcý sýfýra çekildi (kapatýldý)
+
+dolum = 0                                       ; dolum registerine 0 yazýldý
+       
+PAUSE 500                                       ; lcdnin açýlmasý için 500ms bekleme
+    
+ana_dongu:                                      ; program ana döngü etiketi
+
+    if depo_sens = 0 then                       ; depo seviye sensörü 0 sa ( su deposu doluysa)
+        LCDOUT $FE,1," YENi SiSE ALINIYOR "     ; lcdnin 1. satýrýna "yeni þiþe alýnýyor" yazýldý
+        LCDOUT $FE,$C0,1," DOLUM = ",dec dolum  ; lcdnin 2. satýrýna "dolum" ve dolum registerindeki deðer yazýldý 
+        high bant_motor                         ; bant motoru çalýþtýrýldý
+        gosub doluma_hazirlaniyor               ; program dolum_hazirlaniyor etiketine dallandýrýldý
+        gosub sise_doluyor                      ; program sise_doluyor etiketine dallandýrýldý
+        pause 2000                              ; 2000 ms hiçbir iþlem yapmadan bekle
+    else                                        ; depo seviye sensörü 1 se ( su deposu boþsa)
+        low bant_motor                          ; bant motoru durduruldu
+        low su_pompasi                          ; su pompasý motoru durduruldu
+        low adet_sayici                         ; adet sayýcý çýkýþý durduruldu
+        LCDOUT $FE,1,"   SU DEPOSU BOS    "     ; lcdnin 1. satýrýna "su deposu boþ " yazýldý
+        LCDOUT $FE,$C0,1," DOLUM = ",dec dolum  ; lcdnin 2. satýrýna "dolum" ve dolum registerindeki deðer yazýldý 
+   endif                                        
+   
+   pause 100                                    ; 100ms bekleme
+       
+goto ana_dongu                                  ; programý ana_gongu etiketine gönderdi
+
+doluma_hazirlaniyor:                            ; doluma_hazirlaniyor etiketi
+ 
+    if sise_sens = 1 then                       ;sise sens inputu 1 olduysa( sensör yeni þiþeyi gördüyse )
+        low bant_motor                          ; bant motoru durduruldu
+        LCDOUT $FE,1,"DOLUMA HAZIRLANIYOR "     ; lcdnin 1. satýrýna "doluma hazýrlanýyor" yazýldý
+        LCDOUT $FE,$C0,1," DOLUM = ",dec dolum  ; lcdnin 2. satýrýna "dolum" ve dolum registerindeki deðer yazýldý
+        pause 500                               ; 500ms bekleme
+        return                                  ; program dallandýrýldýðý adrese geri gönderildi
+    endif                                      
+    PAUSE 100                                   ; 100ms bekleme
+
+goto doluma_hazirlaniyor                        ; programý doluma_hazirlaniyor etiketine gönderdi
+
+sise_doluyor:                                   ; sise_doluyor etiketi
+
+    high su_pompasi                             ; su pompasý motoru çalýþtýrýldý
+    LCDOUT $FE,1,"    SiSE DOLUYOR    "         ; lcdnin 1. satýrýna "þiþe doluyor" yazýldý
+    LCDOUT $FE,$C0,1," DOLUM = ",dec dolum      ; lcdnin 2. satýrýna "dolum" ve dolum registerindeki deðer yazýldý
+           
+    if dolum_sens = 1 then                      ; dolum sens 1 olduysa ( þiþe dolduysa)
+        low su_pompasi                          ; su pompasý durduruldu
+        dolum = dolum + 1                       ; dolum registeri 1 arttýrýldý ( dolum sayýcýsý 1 arttý)
+        LCDOUT $FE,1,"   DOLUM BASARILI   "     ; lcdnin 1. satýrýna "dolum baþarýlý" yazýldý
+        LCDOUT $FE,$C0,1," DOLUM = ",dec dolum  ; lcdnin 2. satýrýna "dolum" ve dolum registerindeki deðer yazýldý
+        high adet_sayici                        ; adet sayýcý çýkýþi 1  yapýldý ( harici sayýcý baðlanýlmak isterse )
+        pause 1000                              ; 1000ms bekle
+        low adet_sayici                         ; adet sayýcý çýkýþý 0 yapýldý
+        return                                  ; program dallandýrýldýðý adrese geri gönderildi
+    endif  
+    pause 100                                   ; 100ms bekleme                        
+
+goto sise_doluyor                               ; programý sise_doluyor etiketine gönderdi 
+
+
